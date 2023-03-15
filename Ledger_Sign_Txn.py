@@ -157,4 +157,4 @@ txn_dict['value'] = 0
 txn_dict['data'] = 0
 txn_dict['nonce'] = w3.eth.get_transaction_count(txn_dict['from'])
 encoded_transaction, keccak_hash_digest = encode_txn(txn_dict)
-ledger_sign_txn(0, encoded_transaction, keccak_hash_digest)  # This is currently set up to sign only, not send.
+ledger_sign_txn(ledger_wallet_offset, encoded_transaction, keccak_hash_digest)  # This is currently set up to sign only, not send.
