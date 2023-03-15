@@ -110,7 +110,7 @@ def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
         apdu = struct.pack(">BBBBB", 0xE0, 0x0A, 0x00, 0x00, len(descriptor)) + descriptor
         dongle.exchange(bytes(apdu))
     else:
-        donglePath = parse_bip32_path(wallet_offset)  #todo "BIP 32 path to sign with"
+        donglePath = parse_bip32_path(wallet_offset)  # BIP 32 path to sign with
         apdu = bytearray.fromhex("e0040000")
         apdu.append(len(donglePath) + 1 + len(encoded_transaction))
         apdu.append(len(donglePath) // 4)
@@ -136,7 +136,7 @@ def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
         signed_transaction_legacy = TransactionLegacy(**{**{k: txn_dict[k] for k in txn_dict if k in TransactionLegacy._meta.field_names}, 'v': v, 'r': r, 's': s})
         encoded_transaction = rlp.encode(signed_transaction_legacy)
 
-        print("encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
+        print("Encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
         print("Check and broadcast from here: https://flightwallet.github.io/decode-eth-tx/")
         print("Or uncomment the lines below this one to send automatically")
         #       # send raw transaction
