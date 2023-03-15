@@ -29,7 +29,7 @@ def get_ledger_address(offset):
     """
     donglePath = parse_bip32_path(offset)
 
-    apdu = bytes.fromhex('e0020000')  # https://github.com/LedgerHQ/blue-app-eth/blob/master/doc/ethapp.asc#get-eth-public-address
+    apdu = bytes.fromhex('e0020000')
     apdu += bytes([len(donglePath) + 1])
     apdu += bytes([len(donglePath) // 4])
     apdu += donglePath
@@ -135,13 +135,13 @@ def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
 
 w3 = web3.Web3(web3.Web3.HTTPProvider("https://bsc-dataseed.binance.org:443"))
 
-ledger_wallet_offset = 0  # Which ledger wallet to use(0, 1 ,2, 3, etc)
+ledger_wallet_offset = 0  # Which ledger wallet to use(0, 1, 2, 3, etc)
 txn_dict={}
 txn_dict['gasPrice'] = w3.eth.gas_price
 txn_dict['gas'] = 0
 txn_dict['chainId'] = w3.eth.chain_id
 txn_dict['from'] = get_ledger_address(ledger_wallet_offset)
-txn_dict['to'] = "0x643D350C8b79DE06285B7b9aD85Bee606F297643"
+txn_dict['to'] = "0x0000000000000000000000000000000000000000"
 txn_dict['value'] = 0
 txn_dict['data'] = 0
 txn_dict['nonce'] = w3.eth.get_transaction_count(txn_dict['from'])
