@@ -98,50 +98,39 @@ def encode_txn(txn_dict):
 
 def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
     dongle = getDongle(True)
-    descriptor = None
-    path = None
-    if path == None:
-        # The first wallet is "44'/60'/0'/0/0"
-        # if you want to use the next wallet/account ->  "44'/60'/1'/0/0"
-        path = f"44'/60'/{wallet_offset}'/0/0"
 
-    if descriptor != None:
-        descriptor = binascii.unhexlify(descriptor)
-        apdu = struct.pack(">BBBBB", 0xE0, 0x0A, 0x00, 0x00, len(descriptor)) + descriptor
-        dongle.exchange(bytes(apdu))
-    else:
-        donglePath = parse_bip32_path(wallet_offset)  # BIP 32 path to sign with
-        apdu = bytearray.fromhex("e0040000")
-        apdu.append(len(donglePath) + 1 + len(encoded_transaction))
-        apdu.append(len(donglePath) // 4)
-        apdu += donglePath + encoded_transaction
+    donglePath = parse_bip32_path(wallet_offset)  # BIP 32 path to sign with
+    apdu = bytearray.fromhex("e0040000")
+    apdu.append(len(donglePath) + 1 + len(encoded_transaction))
+    apdu.append(len(donglePath) // 4)
+    apdu += donglePath + encoded_transaction
 
-        result = dongle.exchange(bytes(apdu))
-        r = int(binascii.hexlify(result[1:33]), 16)
-        s = int(binascii.hexlify(result[33:65]), 16)
-        # From EIP 155, V = chainId * 2 + 35 + recovery_id of public key.
-        for parityBit in (0, 1):
-            v = txn_dict['chainId'] * 2 + 35 + parityBit
-            try:
-                assert txn_dict['from'] == w3.eth.account.recoverHash(message_hash=keccak_hash_digest, vrs=(v, r, s))
-                y_parity = bool(parityBit) #Convert to True or False for Type2(EIP 1559) Transactions
-                break
-            except:
-                pass
+    result = dongle.exchange(bytes(apdu))
+    r = int(binascii.hexlify(result[1:33]), 16)
+    s = int(binascii.hexlify(result[33:65]), 16)
+    # From EIP 155, V = chainId * 2 + 35 + recovery_id of public key.
+    for parityBit in (0, 1):
+        v = txn_dict['chainId'] * 2 + 35 + parityBit
+        try:
+            assert txn_dict['from'] == w3.eth.account.recoverHash(message_hash=keccak_hash_digest, vrs=(v, r, s))
+            y_parity = bool(parityBit) #Convert to True or False for Type2(EIP 1559) Transactions
+            break
+        except:
+            pass
 
-        print("R: %s" % r)
-        print("S: %s" % s)
-        print("V: %s" % v)
+    print("R: %s" % r)
+    print("S: %s" % s)
+    print("V: %s" % v)
 
-        signed_transaction_legacy = TransactionLegacy(**{**{k: txn_dict[k] for k in txn_dict if k in TransactionLegacy._meta.field_names}, 'v': v, 'r': r, 's': s})
-        encoded_transaction = rlp.encode(signed_transaction_legacy)
+    signed_transaction_legacy = TransactionLegacy(**{**{k: txn_dict[k] for k in txn_dict if k in TransactionLegacy._meta.field_names}, 'v': v, 'r': r, 's': s})
+    encoded_transaction = rlp.encode(signed_transaction_legacy)
 
-        print("Encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
-        print("Check and broadcast from here: https://flightwallet.github.io/decode-eth-tx/")
-        print("Or uncomment the lines below this one to send automatically")
-        #       # send raw transaction
-        # transaction_result_hash = w3.eth.sendRawTransaction(encoded_transaction)
-        # print("Transaction broadcast hash: 0x%s" % hexlify(transaction_result_hash).decode("utf-8"))
+    print("encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
+    print("Check and broadcast from here: https://flightwallet.github.io/decode-eth-tx/")
+    print("Or uncomment the lines below this one to send automatically")
+    #       # send raw transaction
+    # transaction_result_hash = w3.eth.sendRawTransaction(encoded_transaction)
+    # print("Transaction broadcast hash: 0x%s" % hexlify(transaction_result_hash).decode("utf-8"))
 
 
 w3 = web3.Web3(web3.Web3.HTTPProvider("https://bsc-dataseed.binance.org:443"))
