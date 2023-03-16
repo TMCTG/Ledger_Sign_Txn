@@ -87,20 +87,21 @@ def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it
     encoded_transaction = rlp.encode(transaction_legacy)  # RLP encode the transaction
     print("RLP encoded transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
 
-    # Per Ethereum standards, Keccak hash rlp encoded transaction
+    # Get the Keccak hash of the encoded transaction to verify the signature later.
     keccak_hash = keccak.new(digest_bits=256)
     keccak_hash.update(encoded_transaction)
     print("Keccak hash of encoded txn: %s" % keccak_hash.hexdigest())
 
+    # Ledger signing
     dongle = getDongle(True)
-
     donglePath = parse_bip32_path(wallet_offset)  # BIP 32 path to sign with
     apdu = bytearray.fromhex("e0040000")
     apdu.append(len(donglePath) + 1 + len(encoded_transaction))
     apdu.append(len(donglePath) // 4)
     apdu += donglePath + encoded_transaction
-
     result = dongle.exchange(bytes(apdu))
+
+    # Unpack the R & S values from the signature returned by the Ledger
     r = int(binascii.hexlify(result[1:33]), 16)
     s = int(binascii.hexlify(result[33:65]), 16)
     # From EIP 155, V = chainId * 2 + 35 + recovery_id of public key.
@@ -117,7 +118,9 @@ def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it
     print("S: %s" % s)
     print("V: %s" % v)
 
+    # Reconstruct the transaction dictionary with the new R, S, V values that means it's effectively "signed" now.
     signed_transaction_legacy = TransactionLegacy(**{**{k: txn_dict[k] for k in txn_dict if k in TransactionLegacy._meta.field_names}, 'v': v, 'r': r, 's': s})
+    # RLP Encode it and it's ready to send out
     encoded_transaction = rlp.encode(signed_transaction_legacy)
 
     print("encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
@@ -127,17 +130,18 @@ def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it
     # transaction_result_hash = w3.eth.sendRawTransaction(encoded_transaction)
     # print("Transaction broadcast hash: 0x%s" % hexlify(transaction_result_hash).decode("utf-8"))
 
-
+    
 w3 = Web3(Web3.HTTPProvider("https://bsc-dataseed.binance.org:443"))
 
 ledger_wallet_offset = 0  # Which ledger wallet to use(0, 1, 2, 3, etc)
+wallet_address = get_ledger_address(ledger_wallet_offset)
 txn_dict={}
 txn_dict['gasPrice'] = w3.eth.gas_price
 txn_dict['gas'] = 0
 txn_dict['chainId'] = w3.eth.chain_id
-txn_dict['from'] = get_ledger_address(ledger_wallet_offset)
+txn_dict['from'] = wallet_address
 txn_dict['to'] = "0x0000000000000000000000000000000000000000"
 txn_dict['value'] = 0
 txn_dict['data'] = 0
-txn_dict['nonce'] = w3.eth.get_transaction_count(txn_dict['from'])
+txn_dict['nonce'] = w3.eth.get_transaction_count(wallet_address)
 ledger_sign(ledger_wallet_offset, txn_dict)  # This is currently set up to sign only, not send.
