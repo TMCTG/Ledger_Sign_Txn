@@ -1,7 +1,7 @@
 from ledgerblue.comm import getDongle
 import struct
 import binascii
-import web3
+from web3 import Web3
 import rlp
 from rlp.sedes import binary, Binary, big_endian_int, BigEndianInt, List, CountableList, boolean
 from Crypto.Hash import keccak
@@ -74,13 +74,11 @@ def parse_bip32_path(offset):
     return result
 
 
-def encode_txn(txn_dict):
+def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it, send it to the ledger for signing, repack it with r,s,v, encode it, and send it (When the last 2 lines of this function are uncommented).
     if txn_dict['data'] == 0 or txn_dict['data'] == "0x": txn_dict['data'] = b''
     if type(txn_dict['to']) != type(b''): txn_dict['to'] = unhexlify(txn_dict['to'].replace('0x', ''))
     if not txn_dict['gas'] >= 21000:
-        if txn_dict['to'] == "0xb5151965b13872B183EBa08e33D0d06743AC8132": txn_dict['gas'] = 55000
-        elif txn_dict['to'] == "0xB59686fe494D1Dd6d3529Ed9df384cD208F182e8": txn_dict['gas'] = 400000
-        else: txn_dict['gas'] = int(w3.eth.estimate_gas({**{k: txn_dict[k] for k in txn_dict if k in ('from', 'nonce', 'to', 'data', 'value')}}))
+        txn_dict['gas'] = int(w3.eth.estimate_gas({**{k: txn_dict[k] for k in txn_dict if k in ('from', 'nonce', 'to', 'data', 'value')}}))
 
     transaction_legacy = TransactionLegacy(nonce=txn_dict['nonce'], gasPrice=txn_dict['gasPrice'],
                                            gas=txn_dict['gas'],
@@ -93,10 +91,7 @@ def encode_txn(txn_dict):
     keccak_hash = keccak.new(digest_bits=256)
     keccak_hash.update(encoded_transaction)
     print("Keccak hash of encoded txn: %s" % keccak_hash.hexdigest())
-    return encoded_transaction, keccak_hash.digest()
 
-
-def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
     dongle = getDongle(True)
 
     donglePath = parse_bip32_path(wallet_offset)  # BIP 32 path to sign with
@@ -112,7 +107,7 @@ def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
     for parityBit in (0, 1):
         v = txn_dict['chainId'] * 2 + 35 + parityBit
         try:
-            assert txn_dict['from'] == w3.eth.account.recoverHash(message_hash=keccak_hash_digest, vrs=(v, r, s))
+            assert txn_dict['from'] == w3.eth.account.recoverHash(message_hash=keccak_hash.digest(), vrs=(v, r, s))
             y_parity = bool(parityBit) #Convert to True or False for Type2(EIP 1559) Transactions
             break
         except:
@@ -133,7 +128,7 @@ def ledger_sign_txn(wallet_offset, encoded_transaction, keccak_hash_digest):
     # print("Transaction broadcast hash: 0x%s" % hexlify(transaction_result_hash).decode("utf-8"))
 
 
-w3 = web3.Web3(web3.Web3.HTTPProvider("https://bsc-dataseed.binance.org:443"))
+w3 = Web3(Web3.HTTPProvider("https://bsc-dataseed.binance.org:443"))
 
 ledger_wallet_offset = 0  # Which ledger wallet to use(0, 1, 2, 3, etc)
 txn_dict={}
@@ -145,5 +140,4 @@ txn_dict['to'] = "0x0000000000000000000000000000000000000000"
 txn_dict['value'] = 0
 txn_dict['data'] = 0
 txn_dict['nonce'] = w3.eth.get_transaction_count(txn_dict['from'])
-encoded_transaction, keccak_hash_digest = encode_txn(txn_dict)
-ledger_sign_txn(ledger_wallet_offset, encoded_transaction, keccak_hash_digest)  # This is currently set up to sign only, not send.
+ledger_sign(ledger_wallet_offset, txn_dict)  # This is currently set up to sign only, not send.
