@@ -2,7 +2,7 @@ from ledgerblue.comm import getDongle
 import struct
 from web3 import Web3
 import rlp
-from rlp.sedes import binary, Binary, big_endian_int, BigEndianInt, List, CountableList, boolean
+from rlp.sedes import binary, Binary, big_endian_int
 from Crypto.Hash import keccak
 from binascii import unhexlify, hexlify
 
