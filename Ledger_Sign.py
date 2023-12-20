@@ -1,6 +1,5 @@
 from ledgerblue.comm import getDongle
 import struct
-import binascii
 from web3 import Web3
 import rlp
 from rlp.sedes import binary, Binary, big_endian_int, BigEndianInt, List, CountableList, boolean
@@ -102,13 +101,13 @@ def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it
     result = dongle.exchange(bytes(apdu))
 
     # Unpack the R & S values from the signature returned by the Ledger
-    r = int(binascii.hexlify(result[1:33]), 16)
-    s = int(binascii.hexlify(result[33:65]), 16)
+    r = int(hexlify(result[1:33]), 16)
+    s = int(hexlify(result[33:65]), 16)
     # From EIP 155, V = chainId * 2 + 35 + recovery_id of public key.
     for parityBit in (0, 1):
         v = txn_dict['chainId'] * 2 + 35 + parityBit
         try:
-            assert txn_dict['from'] == w3.eth.account.recoverHash(message_hash=keccak_hash.digest(), vrs=(v, r, s))
+            assert txn_dict['from'] == w3.eth.account._recover_hash(message_hash=keccak_hash.digest(), vrs=(v, r, s))
             y_parity = bool(parityBit) #Convert to True or False for Type2(EIP 1559) Transactions
             break
         except:
@@ -126,8 +125,8 @@ def ledger_sign(wallet_offset, txn_dict):  # This will prepare the tx, encode it
     print("encoded signed transaction: %s" % hexlify(encoded_transaction).decode("utf-8"))
     print("Check and broadcast from here: https://flightwallet.github.io/decode-eth-tx/")
     print("Or uncomment the lines below this one to send automatically")
-    #       # send raw transaction
-    # transaction_result_hash = w3.eth.sendRawTransaction(encoded_transaction)
+    # send raw transaction
+    # transaction_result_hash = w3.eth.send_raw_ransaction(encoded_transaction)
     # print("Transaction broadcast hash: 0x%s" % hexlify(transaction_result_hash).decode("utf-8"))
 
     
